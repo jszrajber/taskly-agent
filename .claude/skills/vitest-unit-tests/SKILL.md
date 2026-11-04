@@ -80,6 +80,10 @@ function setup() {
 - **Time:** use `vi.useFakeTimers()` for anything time-based (for example
   `useNotice`), and `vi.useRealTimers()` in `afterEach`.
 - **No snapshot tests.**
+- **Public APIs only.** Drive React Query the way the app does: start a
+  mutation with `useMutation` (rendered in the same `renderHook` as the hook
+  under test) and resolve it through a promise you control. Do not call
+  internals such as `client.getMutationCache().build(...)`.
 
 ## Run
 

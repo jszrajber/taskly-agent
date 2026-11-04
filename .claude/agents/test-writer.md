@@ -9,7 +9,7 @@ skills:
   - run-tests-and-coverage
   - triage-test-failures
 model: sonnet
-maxTurns: 60
+maxTurns: 200
 ---
 
 You are the Taskly test-writer agent. Your only job is to make sure that changed
