@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from app.features.todos.schemas import Priority, TodoCreate, TodoUpdate
+from app.features.todos.schemas import Priority, TodoCreate, TodoStats, TodoUpdate
 
 
 def test_create_applies_defaults():
@@ -51,6 +51,16 @@ def test_update_allows_null_due_date():
 
 def test_update_parses_due_date():
     assert TodoUpdate(due_date="2026-12-01").due_date == date(2026, 12, 1)
+
+
+def test_stats_requires_all_counts():
+    with pytest.raises(ValidationError):
+        TodoStats(total=1, completed=0)
+
+
+def test_stats_rejects_non_numeric_count():
+    with pytest.raises(ValidationError):
+        TodoStats(total="many", completed=0, overdue=0)
 
 
 def test_update_rejects_empty_patch():
