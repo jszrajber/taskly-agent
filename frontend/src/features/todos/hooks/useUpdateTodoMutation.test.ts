@@ -44,6 +44,30 @@ it('does not create a list when nothing is cached', async () => {
   expect(client.getQueryData(todoKeys.list)).toBeUndefined()
 })
 
+it('marks the cached stats stale after updating', async () => {
+  vi.mocked(todosApi.update).mockResolvedValue(todoFixture)
+  const { client, wrapper } = setup()
+  client.setQueryData(todoKeys.stats, { total: 1, completed: 0, overdue: 0 })
+
+  const { result } = renderHook(() => useUpdateTodoMutation(), { wrapper })
+  await result.current.mutateAsync({ id: todoFixture.id, input: { completed: true } })
+
+  expect(client.getQueryState(todoKeys.stats)?.isInvalidated).toBe(true)
+})
+
+it('keeps the stats fresh when updating fails', async () => {
+  vi.mocked(todosApi.update).mockRejectedValue(new Error('nope'))
+  const { client, wrapper } = setup()
+  client.setQueryData(todoKeys.stats, { total: 1, completed: 0, overdue: 0 })
+
+  const { result } = renderHook(() => useUpdateTodoMutation(), { wrapper })
+  await expect(
+    result.current.mutateAsync({ id: todoFixture.id, input: { completed: true } }),
+  ).rejects.toThrow('nope')
+
+  expect(client.getQueryState(todoKeys.stats)?.isInvalidated).toBe(false)
+})
+
 it('leaves the cache unchanged when updating fails', async () => {
   vi.mocked(todosApi.update).mockRejectedValue(new Error('nope'))
   const { client, wrapper } = setup()

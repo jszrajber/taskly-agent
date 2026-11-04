@@ -15,6 +15,7 @@ export function useCreateTodoMutation() {
         saved,
         ...current.filter((todo) => todo.id !== saved.id),
       ])
+      queryClient.invalidateQueries({ queryKey: todoKeys.stats })
     },
   })
 }

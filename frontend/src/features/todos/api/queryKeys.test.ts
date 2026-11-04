@@ -7,6 +7,11 @@ it('nests every key under the shared todos prefix so one key matches all', () =>
   }
 })
 
+it('nests the stats key under the todos prefix and keeps it distinct from the list key', () => {
+  expect(todoKeys.stats.slice(0, todoKeys.all.length)).toEqual(todoKeys.all)
+  expect(todoKeys.stats.join('/')).not.toBe(todoKeys.list.join('/'))
+})
+
 it('gives each operation a distinct key', () => {
   const keys = [todoKeys.list, todoKeys.create, todoKeys.update, todoKeys.delete].map(
     (key) => key.join('/'),
