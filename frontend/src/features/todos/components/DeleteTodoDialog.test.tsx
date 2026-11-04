@@ -40,3 +40,68 @@ it('shows a deletion error and allows cancelling without deleting', async () => 
   expect(mutateAsync).not.toHaveBeenCalled()
   expect(onDeleted).not.toHaveBeenCalled()
 })
+
+function mockMutation(overrides: Record<string, unknown>) {
+  vi.mocked(useDeleteTodoMutation).mockReturnValue({
+    isPending: false,
+    error: null,
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  } as unknown as ReturnType<typeof useDeleteTodoMutation>)
+}
+
+it('deletes the task and notifies once the deletion succeeds', async () => {
+  const user = userEvent.setup()
+  const mutateAsync = vi.fn().mockResolvedValue(undefined)
+  mockMutation({ mutateAsync })
+  const onDeleted = vi.fn()
+  render(
+    <DeleteTodoDialog
+      todo={todoFixture}
+      busy={false}
+      onClose={vi.fn()}
+      onDeleted={onDeleted}
+    />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Delete task' }))
+  expect(mutateAsync).toHaveBeenCalledWith(todoFixture.id)
+  expect(onDeleted).toHaveBeenCalledTimes(1)
+})
+
+it('keeps the dialog open without notifying when deletion fails', async () => {
+  const user = userEvent.setup()
+  const mutateAsync = vi.fn().mockRejectedValue(new Error('Server error'))
+  mockMutation({ mutateAsync })
+  const onDeleted = vi.fn()
+  const onClose = vi.fn()
+  render(
+    <DeleteTodoDialog
+      todo={todoFixture}
+      busy={false}
+      onClose={onClose}
+      onDeleted={onDeleted}
+    />,
+  )
+  await user.click(screen.getByRole('button', { name: 'Delete task' }))
+  expect(mutateAsync).toHaveBeenCalledTimes(1)
+  expect(onDeleted).not.toHaveBeenCalled()
+  expect(onClose).not.toHaveBeenCalled()
+  expect(screen.getByRole('dialog', { name: 'Delete task?' })).toBeVisible()
+})
+
+it.each([
+  ['the parent is busy', { busy: true, isPending: false }],
+  ['the deletion is pending', { busy: false, isPending: true }],
+])('disables both actions while %s', (_name, { busy, isPending }) => {
+  mockMutation({ isPending })
+  render(
+    <DeleteTodoDialog
+      todo={todoFixture}
+      busy={busy}
+      onClose={vi.fn()}
+      onDeleted={vi.fn()}
+    />,
+  )
+  expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Deleting…' })).toBeDisabled()
+})

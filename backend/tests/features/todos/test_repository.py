@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import Mock
 
 from sqlalchemy import select
@@ -6,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.features.todos.models import TodoRecord
 from app.features.todos.repository import TodoRepository
+from app.features.todos.schemas import TodoCreate, TodoUpdate
 
 
 def test_list_maps_models_and_orders_tasks_newest_first(model_factory, todo_values, todo):
@@ -24,3 +26,77 @@ def test_get_returns_none_for_missing_task():
     session.get.return_value = None
     assert TodoRepository(session).get(404) is None
     session.get.assert_called_once_with(TodoRecord, 404)
+
+
+def test_get_returns_mapped_task(model_factory, todo_values, todo):
+    session = Mock(spec=Session)
+    session.get.return_value = model_factory(todo_values)
+    assert TodoRepository(session).get(7) == todo
+
+
+def test_create_persists_record_with_matching_timestamps_and_commits():
+    session = Mock(spec=Session)
+    session.add.side_effect = lambda record: setattr(record, "id", 11)
+    payload = TodoCreate(title="Write tests", priority="low")
+
+    created = TodoRepository(session).create(payload)
+
+    record = session.add.call_args.args[0]
+    assert isinstance(record, TodoRecord)
+    assert record.title == "Write tests"
+    assert record.created_at == record.updated_at
+    assert record.created_at.tzinfo is not None
+    session.commit.assert_called_once_with()
+    session.refresh.assert_called_once_with(record)
+    assert created.id == 11
+    assert created.title == "Write tests"
+    assert created.priority == "low"
+
+
+def test_update_missing_task_returns_none_without_commit():
+    session = Mock(spec=Session)
+    session.get.return_value = None
+    assert TodoRepository(session).update(5, TodoUpdate(title="New")) is None
+    session.commit.assert_not_called()
+
+
+def test_update_changes_only_provided_fields_and_bumps_updated_at(model_factory, todo_values):
+    session = Mock(spec=Session)
+    record = model_factory(todo_values)
+    session.get.return_value = record
+
+    updated = TodoRepository(session).update(7, TodoUpdate(completed=True))
+
+    assert updated.completed is True
+    assert updated.title == todo_values["title"]
+    assert updated.description == todo_values["description"]
+    assert updated.created_at == todo_values["created_at"]
+    assert updated.updated_at > todo_values["updated_at"]
+    session.commit.assert_called_once_with()
+    session.refresh.assert_called_once_with(record)
+
+
+def test_update_can_clear_due_date_when_explicitly_null(model_factory, todo_values):
+    session = Mock(spec=Session)
+    session.get.return_value = model_factory({**todo_values, "due_date": date(2026, 12, 1)})
+
+    updated = TodoRepository(session).update(7, TodoUpdate(due_date=None))
+
+    assert updated.due_date is None
+
+
+def test_delete_missing_task_returns_false_without_commit():
+    session = Mock(spec=Session)
+    session.get.return_value = None
+    assert TodoRepository(session).delete(9) is False
+    session.delete.assert_not_called()
+    session.commit.assert_not_called()
+
+
+def test_delete_existing_task_removes_it_and_commits(model_factory, todo_values):
+    session = Mock(spec=Session)
+    record = model_factory(todo_values)
+    session.get.return_value = record
+    assert TodoRepository(session).delete(7) is True
+    session.delete.assert_called_once_with(record)
+    session.commit.assert_called_once_with()
