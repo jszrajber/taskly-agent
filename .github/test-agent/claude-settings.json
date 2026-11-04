@@ -5,9 +5,13 @@
       "Glob",
       "Grep",
       "Edit(backend/tests/**)",
+      "Write(backend/tests/**)",
       "Edit(frontend/src/**/*.test.ts)",
+      "Write(frontend/src/**/*.test.ts)",
       "Edit(frontend/src/**/*.test.tsx)",
+      "Write(frontend/src/**/*.test.tsx)",
       "Edit(.agent/report.json)",
+      "Write(.agent/report.json)",
       "Bash(python -m pytest *)",
       "Bash(npx vitest run *)"
     ],

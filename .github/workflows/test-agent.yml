@@ -101,13 +101,40 @@ jobs:
           # The only step that gets the secret.
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
+          # Add the same Edit/Write rules anchored to the absolute checkout path
+          # ("//" = absolute), so they still match after the agent cd's into
+          # backend/ or frontend/.
+          python - <<'EOF'
+          import json, os
+          with open(".github/test-agent/claude-settings.json") as f:
+              settings = json.load(f)
+          root = os.environ["GITHUB_WORKSPACE"]
+          allow = settings["permissions"]["allow"]
+          for rule in list(allow):
+              tool, _, rest = rule.partition("(")
+              if tool in ("Edit", "Write"):
+                  allow.append(f"{tool}(/{root}/{rest}")
+          with open(".agent/claude-settings.json", "w") as f:
+              json.dump(settings, f, indent=2)
+          EOF
+
+          # stream-json keeps every tool call, so a failed run can be diagnosed
+          # from the artifact.
           claude -p "Write unit tests for the files in .agent/context.json and save the report to .agent/report.json." \
             --agent test-writer \
-            --settings .github/test-agent/claude-settings.json \
+            --settings .agent/claude-settings.json \
             --permission-mode dontAsk \
             --max-turns "$MAX_TURNS" \
-            --output-format json \
-            > .agent/claude-output.json
+            --output-format stream-json --verbose \
+            > .agent/claude-transcript.jsonl
+
+          # The agent must always leave a report; without one the run failed,
+          # even if claude itself exited with 0.
+          if [ ! -s .agent/report.json ]; then
+            echo "The agent did not write .agent/report.json"
+            tail -n 1 .agent/claude-transcript.jsonl
+            exit 1
+          fi
 
       # Independent of the agent's own permissions: fail if it changed
       # anything other than test files.
