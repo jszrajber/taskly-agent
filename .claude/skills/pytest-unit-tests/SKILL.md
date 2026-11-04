@@ -49,6 +49,9 @@ several test files need it; otherwise keep it in the test file.
   and set variables with `monkeypatch.setenv` / `monkeypatch.delenv`.
 - **No real time.** Do not compare with the current time; patch it, or assert
   on types and ordering.
+- **Edge cases of input:** when code builds strings from input (URLs, SQL,
+  messages), include values with special characters, for example a password
+  with `@`, `/` or `:` in `resolve_database_url`.
 - **App startup:** test `create_app` and `lifespan` with mocked engine and
   session factory functions (`monkeypatch.setattr` on the module that imports
   them), never with a running database.

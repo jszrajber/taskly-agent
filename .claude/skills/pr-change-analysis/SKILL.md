@@ -48,10 +48,18 @@ Skip, with a reason, when the change is only:
 - types or interfaces (`types.ts`, `*.types.ts`, Pydantic or SQLAlchemy models without logic),
 - styling, stories, the design system, or barrel `index.ts` files,
 - entry points with no logic (`main.tsx`, `app/main.py`),
+- configuration objects with no logic (`lib/queryClient.ts`, constants files),
 - renames, formatting, or comments with no behaviour change.
 
-These match the coverage exclusions in `frontend/vite.config.ts` and
-`backend/pyproject.toml`, so tests there would not count anyway.
+Before deciding, read the coverage exclusions in `frontend/vite.config.ts`
+(`test.coverage.exclude`) and `backend/pyproject.toml` (`[tool.coverage.run]
+omit`). A file listed there gets `skip` unless the change adds real logic to it;
+say in the reason that the file is excluded from coverage.
+
+Do not write tests that only repeat configuration values or literals from the
+source (for example `expect(staleTime).toBe(30_000)`). They break on every
+intentional change and catch no bugs. Test the behaviour that depends on the
+value instead, or skip the file.
 
 Prefer one strong test per behaviour over many shallow ones. Cover the happy
 path, validation and error paths, and edge cases visible in the diff.
